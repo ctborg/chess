@@ -17,8 +17,12 @@ export default {
         use: "babel-loader"
       },
       {
-        test: /\.css$/i,
-        use: ["style-loader", "css-loader"]
+        test: /\.s[ac]ss$/i,
+        use: [
+          "style-loader",   // Injects styles into the DOM
+          "css-loader",     // Resolves @import/url()
+          "sass-loader"     // Compiles SCSS to CSS
+        ]
       }
     ]
   },

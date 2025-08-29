@@ -1,0 +1,12 @@
+<!-- src/assets/pieces2d/merida/wB.svg -->
+<svg viewBox="0 0 45 45" xmlns="http://www.w3.org/2000/svg">
+  <g fill="#ffffff" stroke="#000000" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+    <circle cx="22.5" cy="10.5" r="3.2"/>
+    <path d="M18 16 C18 14 27 14 27 16 C27 20 24 22 24 24 C24 26 26 27.5 26 30 H19 C19 27.5 21 26 21 24 C21 22 18 20 18 16 Z"/>
+    <!-- bishop notch -->
+    <path d="M22.5 17 L22.5 23" stroke-width="1.2"/>
+    <!-- base -->
+    <rect x="14" y="30" width="17" height="4" rx="1"/>
+    <rect x="12" y="34" width="21" height="4" rx="1"/>
+  </g>
+</svg>

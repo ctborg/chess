@@ -1,0 +1,107 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+.board {
+  position: relative;
+  width: calc(#{$square} * 8);
+  height: calc(#{$square} * 8);
+  border: 6px solid $frame;
+  border-radius: $border-radius;
+  overflow: hidden;
+  background: #222;
+  @include card;
+
+  .rank-row {
+    display: grid;
+    grid-template-columns: repeat(8, $square);
+    height: $square;
+  }
+
+  .square {
+    position: relative;
+    width: $square;
+    height: $square;
+    @include grid-center;
+    cursor: pointer;
+    user-select: none;
+
+    &.light { background: $light; }
+    &.dark  { background: $dark; }
+
+    &.selected { outline: 3px solid $sel; outline-offset: -3px; }
+
+    &.target:not(.selected) { box-shadow: inset 0 0 0 4px $target; }
+
+    &.lastmove {
+      background: linear-gradient(0deg, rgba(255,255,255,.25), rgba(255,255,255,.25));
+    }
+
+    .piece {
+      font-size: 42px;
+      line-height: 1;
+      filter: drop-shadow(0 1px 0 rgba(0,0,0,.4));
+    }
+
+    .dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: rgba(0,0,0,.35);
+    }
+  }
+
+  .file-labels,
+  .rank-labels {
+    position: absolute;
+    font-size: 12px;
+    color: #000a;
+    pointer-events: none;
+  }
+
+  .file-labels {
+    bottom: 4px;
+    left: 0;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    text-align: center;
+  }
+
+  .rank-labels {
+    right: 4px;
+    top: 0;
+    height: 100%;
+    display: grid;
+    grid-template-rows: repeat(8, 1fr);
+    align-items: center;
+  }
+}
+
+/* Promotion overlay */
+.promo-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+  @include grid-center;
+
+  .promo-modal {
+    background: white;
+    padding: 16px;
+    border-radius: $border-radius;
+    display: grid;
+    grid-auto-flow: column;
+    align-items: center;
+    gap: 8px;
+
+    .promo-title {
+      grid-column: 1 / -1;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .promo-btn, .promo-cancel {
+      @include button-reset;
+      font-weight: 700;
+    }
+  }
+}

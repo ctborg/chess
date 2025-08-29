@@ -1,4 +1,18 @@
 import { Chess } from "chess.js";
+import pieceSets from "../assets/pieces2d";
+
+
+  // ...
+  const set = pieceSets[pieceTheme] || pieceSets.merida;
+  // ...
+  {square && (
+    <img
+      src={set[square.type.toUpperCase()][square.color]}
+      alt={`${square.color}${square.type}`}
+      className="piece"
+    />
+  )}
+}
 
 const UNICODE = {
   w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
@@ -13,13 +27,16 @@ export default function Board({
   selected,
   legalTargets = new Set(),
   lastMove,
-  onSquareClick
+  onSquareClick,
+  pieceTheme="merida"
 }) {
   const chess = new Chess(fen);
 
   const ranks = orientation === "white" ? [8,7,6,5,4,3,2,1] : [1,2,3,4,5,6,7,8];
   const files = orientation === "white" ? FILES : [...FILES].reverse();
 
+  const set = pieceSets[pieceTheme] || pieceSets.merida;
+  
   return (
     <div className={`board ${orientation}`}>
       {ranks.map((rank) => (

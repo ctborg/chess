@@ -8,7 +8,8 @@ import { computeBestMove } from "./ai/engine";
 export default function App() {
   const chessRef = useRef(new Chess());
   const game = chessRef.current;
-
+  const [pieceTheme, setPieceTheme] = useState("merida");
+  
   // Core UI / chess state
   const [fen, setFen] = useState(game.fen());
   const [selected, setSelected] = useState(null);
@@ -427,6 +428,13 @@ export default function App() {
 
         {/* FEN / PGN */}
         <div className="io">
+          <div className="io-row">
+            <label>2D Piece Set</label>
+            <select value={pieceTheme} onChange={(e) => setPieceTheme(e.target.value)}>
+              <option value="merida">Merida (SVG)</option>
+              <option value="alpha">Alpha (SVG)</option>
+            </select>
+          </div>          
           <div className="io-row">
             <label>FEN</label>
             <textarea readOnly value={fen} rows={3} />

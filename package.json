@@ -1,11 +1,12 @@
 {
   "name": "chess-app",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "webpack serve --mode development --open --port 5173",
     "build": "webpack --mode production",
+    "gcp-build": "webpack --mode production",   // <— add this
     "start": "node server.js"
   },
   "dependencies": {

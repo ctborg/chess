@@ -23,6 +23,16 @@ export default {
           "css-loader",     // Resolves @import/url()
           "sass-loader"     // Compiles SCSS to CSS
         ]
+      },
+      {
+        test: /\.(glb|gltf)$/i,
+        type: "asset/resource",
+        generator: { filename: "assets/models/[name][ext]" }
+      },
+      {
+        test: /\.(png|jpg|jpeg|svg)$/i,
+        type: "asset/resource",
+        generator: { filename: "assets/textures/[name][ext]" }
       }
     ]
   },

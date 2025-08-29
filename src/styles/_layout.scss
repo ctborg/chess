@@ -23,7 +23,16 @@ body {
   align-items: start;
 }
 
-.left { position: relative; }
+.left {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  canvas {
+    border: 6px solid #333;
+    border-radius: 8px;
+  }
+}
 
 .right {
   max-width: 320px;

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "webpack serve --mode development --open --port 5173",
     "build": "webpack --mode production",
-    "gcp-build": "webpack --mode production",   // <— add this
+    "gcp-build": "webpack --mode production",
     "start": "node server.js"
   },
   "dependencies": {

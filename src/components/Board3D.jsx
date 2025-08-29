@@ -8,9 +8,9 @@ import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.j
 import pieceModels from "../assets/pieces";
 
 // ---------------------- Debug toggles (flip to true temporarily) ----------------------
-const SHOW_AXES = false;   // shows XYZ axes at origin
-const SHOW_BBOX = false;   // outlines mesh bounding boxes
-const LOG_PIECES = false;  // logs placement positions
+const SHOW_AXES = true;   // shows XYZ axes at origin
+const SHOW_BBOX = true;   // outlines mesh bounding boxes
+const LOG_PIECES = true;  // logs placement positions
 
 const FILES = "abcdefgh";
 

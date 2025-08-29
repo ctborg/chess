@@ -2,29 +2,35 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { Chess } from "chess.js";
 import Board from "./components/Board.jsx";
 import Board3D from "./components/Board3D.jsx";
-import { connectP2P } from "./net/p2p";
+import { connectP2P } from "./net/p2p"; // if you added P2P earlier; keep it
+import { computeBestMove } from "./ai/engine";
 
 export default function App() {
-  // Core chess state
   const chessRef = useRef(new Chess());
   const game = chessRef.current;
 
+  // Core UI / chess state
   const [fen, setFen] = useState(game.fen());
   const [selected, setSelected] = useState(null);
-  const [orientation, setOrientation] = useState("white"); // "white" | "black"
+  const [orientation, setOrientation] = useState("white");
   const [pendingPromotion, setPendingPromotion] = useState(null);
   const [lastMove, setLastMove] = useState(null);
   const [mode, setMode] = useState("2d"); // "2d" | "3d"
 
-  // P2P state
+  // Multiplayer (keep if you already added it; otherwise you can remove this block)
   const [mpEnabled, setMpEnabled] = useState(false);
   const [roomCode, setRoomCode] = useState("");
   const [isHost, setIsHost] = useState(false);
-  const [myColor, setMyColor] = useState(null); // "w" | "b" | null (until assigned)
+  const [myP2PColor, setMyP2PColor] = useState(null); // "w"|"b"|null
   const [peerCount, setPeerCount] = useState(0);
-  const p2pRef = useRef(null); // { room, sendMove, onMove, ... }
+  const p2pRef = useRef(null);
 
-  // Derived UI status
+  // Single-player vs AI
+  const [spEnabled, setSpEnabled] = useState(true);
+  const [spMyColor, setSpMyColor] = useState("w"); // "w" or "b"
+  const [difficulty, setDifficulty] = useState("medium"); // "easy"|"medium"|"hard"
+  const aiJobRef = useRef({ id: 0, cancelled: false }); // simple cancel token
+
   const status = useMemo(() => {
     if (game.isCheckmate()) return "Checkmate";
     if (game.isStalemate()) return "Stalemate";
@@ -38,7 +44,7 @@ export default function App() {
     return new Set(game.moves({ square: selected, verbose: true }).map((m) => m.to));
   }, [selected, fen]);
 
-  // ---------- Core helpers ----------
+  // ---------------- helpers ----------------
   function softResetSelections() {
     setSelected(null);
     setPendingPromotion(null);
@@ -62,27 +68,32 @@ export default function App() {
     return false;
   }
 
+  function userIsAllowedToMoveAt(square) {
+    // P2P: must be your color & your turn
+    if (mpEnabled && myP2PColor) {
+      const turn = game.turn();
+      if (turn !== myP2PColor) return false;
+      const piece = game.get(square);
+      if (!piece || piece.color !== myP2PColor) return false;
+    }
+    // Single player: if AI’s turn, block human
+    if (spEnabled) {
+      const humanColor = spMyColor;
+      if (game.turn() !== humanColor) return false;
+    }
+    return true;
+  }
+
   function handleSquareClick(square) {
     if (pendingPromotion) return;
 
-    // Multiplayer: only allow acting on your turn with your color
-    if (mpEnabled && myColor) {
-      // first click: must select your own piece and only when it's your turn
-      if (!selected) {
-        const piece = game.get(square);
-        if (!piece) return;
-        if (game.turn() !== myColor) return;
-        if (piece.color !== myColor) return;
-        setSelected(square);
-        return;
-      }
-      // second click: still must be your turn
-      if (game.turn() !== myColor) return;
-    }
-
     if (!selected) {
+      // first click: must pick an own piece if P2P or SP restrictions apply
+      if (!userIsAllowedToMoveAt(square)) return;
       const piece = game.get(square);
-      if (piece && piece.color === game.turn()) setSelected(square);
+      if (piece && piece.color === game.turn()) {
+        setSelected(square);
+      }
       return;
     }
 
@@ -106,10 +117,12 @@ export default function App() {
 
     const ok = tryMove(selected, square);
     if (ok) {
-      // Broadcast local move to peer
+      // P2P broadcast
       if (mpEnabled && p2pRef.current) {
         p2pRef.current.sendMove({ from: selected, to: square });
       }
+      // Let AI respond if needed
+      maybeMakeAIMove();
     } else {
       const maybeOwn = game.get(square);
       if (maybeOwn && maybeOwn.color === game.turn()) setSelected(square);
@@ -121,23 +134,27 @@ export default function App() {
     const { from, to } = pendingPromotion;
     const ok = tryMove(from, to, piece);
     setPendingPromotion(null);
-    if (ok && mpEnabled && p2pRef.current) {
-      p2pRef.current.sendMove({ from, to, promotion: piece });
+    if (ok) {
+      if (mpEnabled && p2pRef.current) {
+        p2pRef.current.sendMove({ from, to, promotion: piece });
+      }
+      maybeMakeAIMove();
     }
   }
 
   function resetGame(broadcast = true) {
+    cancelAI();
     game.reset();
     setFen(game.fen());
     softResetSelections();
     if (mpEnabled && p2pRef.current && broadcast) {
       p2pRef.current.sendCtrl({ type: "reset" });
-      // host also re-syncs canonical state
       if (isHost) p2pRef.current.sendSync({ fen: game.fen(), orientation });
     }
   }
 
   function undo(broadcast = true) {
+    cancelAI();
     if (game.history().length > 0) {
       game.undo();
       setFen(game.fen());
@@ -152,68 +169,110 @@ export default function App() {
     setOrientation((o) => (o === "white" ? "black" : "white"));
   }
 
-  // ---------- P2P wiring ----------
+  function copy(text) {
+    navigator.clipboard?.writeText(text);
+  }
+
+  // --------------- AI integration ---------------
+  function aiParamsForDifficulty(level) {
+    switch (level) {
+      case "easy":   return { depth: 1, randomness: 0.5 };
+      case "hard":   return { depth: 3, randomness: 0.0 };
+      case "medium":
+      default:       return { depth: 2, randomness: 0.15 };
+    }
+  }
+
+  function cancelAI() {
+    aiJobRef.current.cancelled = true;
+    aiJobRef.current.id++;
+  }
+
+  function maybeMakeAIMove() {
+    if (!spEnabled) return;
+    const humanColor = spMyColor;
+    // If it's not AI's turn, nothing to do
+    if (game.turn() === humanColor) return;
+    if (game.isGameOver()) return;
+
+    const jobId = ++aiJobRef.current.id;
+    aiJobRef.current.cancelled = false;
+
+    const think = () => {
+      if (aiJobRef.current.cancelled || jobId !== aiJobRef.current.id) return;
+      const params = aiParamsForDifficulty(difficulty);
+      const best = computeBestMove(game.fen(), params);
+      if (!best) return;
+      // Default promotions (if engine returns {from,to} w/o promotion on a pawn)
+      const needsPromo = best.promotion || (game.get(best.from)?.type === "p" && (best.to.endsWith("8") || best.to.endsWith("1")));
+      const move = { from: best.from, to: best.to, promotion: needsPromo ? (best.promotion || "q") : undefined };
+      const ok = tryMove(move.from, move.to, move.promotion);
+      if (!ok) return;
+    };
+
+    // Let the UI breathe before heavy compute
+    setTimeout(think, 0);
+  }
+
+  // If single-player is enabled and the human chose black, AI should move first
+  useEffect(() => {
+    if (!spEnabled) return;
+    // after any full reset to start position
+    if (fen === new Chess().fen()) {
+      if (spMyColor === "b") maybeMakeAIMove();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spEnabled, spMyColor]);
+
+  // --------------- P2P wiring (optional; keep if you already added it) ---------------
   async function connectRoom() {
     if (!roomCode.trim()) return;
-
     const conn = await connectP2P(roomCode.trim(), { appId: "chess-app" });
     p2pRef.current = conn;
 
-    // Count peers & determine host/guest
     const updatePeerCount = () => {
-      // Trystero exposes room.getPeers(); treat size === 0 as "first in room"
       try {
         const size = conn.room.getPeers?.().size ?? 0;
         setPeerCount(size);
-        setIsHost(size === 0); // if no peers yet, you're hosting
-        if (size === 0) setMyColor("w"); // host is white by default
-      } catch {
-        // if API differs, ignore count
-      }
+        setIsHost(size === 0);
+        if (size === 0) setMyP2PColor("w");
+      } catch {}
     };
     updatePeerCount();
 
-    conn.room.onPeerJoin?.((_peerId) => {
+    conn.room.onPeerJoin?.(() => {
       updatePeerCount();
-      // Host syncs state and assigns colors when someone joins
       if (isHost) {
         conn.sendSync({ fen: game.fen(), orientation });
         conn.sendCtrl({ type: "assign", color: "b" });
-        setMyColor("w");
+        setMyP2PColor("w");
       }
     });
 
-    conn.room.onPeerLeave?.((_peerId) => {
-      updatePeerCount();
-    });
+    conn.room.onPeerLeave?.(() => updatePeerCount());
 
-    // Receive a move from the peer
     conn.onMove((_peerId, data) => {
       const { from, to, promotion } = data || {};
       tryMove(from, to, promotion);
     });
 
-    // Receive a full state sync from host
     conn.onSync((_peerId, data) => {
       if (!data) return;
       if (typeof data.orientation === "string") setOrientation(data.orientation);
       if (typeof data.fen === "string") applyFenString(data.fen);
-      // If guest hasn't been assigned yet, they'll get an assign shortly.
     });
 
-    // Control messages (assign/undo/reset)
     conn.onCtrl((_peerId, msg) => {
       if (!msg || !msg.type) return;
       switch (msg.type) {
         case "assign":
-          // Host tells guest their color
-          setMyColor(msg.color === "w" ? "w" : "b");
+          setMyP2PColor(msg.color === "w" ? "w" : "b");
           break;
         case "undo":
-          undo(false); // apply locally without rebroadcast
+          undo(false);
           break;
         case "reset":
-          resetGame(false); // apply locally without rebroadcast
+          resetGame(false);
           break;
         default:
           break;
@@ -221,26 +280,22 @@ export default function App() {
     });
 
     setMpEnabled(true);
+    // Turn off single-player if you connect P2P
+    setSpEnabled(false);
   }
 
   function disconnectRoom() {
-    try {
-      p2pRef.current?.room?.leaveRoom?.();
-    } catch {}
+    try { p2pRef.current?.room?.leaveRoom?.(); } catch {}
     p2pRef.current = null;
     setMpEnabled(false);
     setPeerCount(0);
     setIsHost(false);
-    setMyColor(null);
+    setMyP2PColor(null);
   }
 
-  // Clean up on unmount
   useEffect(() => () => disconnectRoom(), []);
 
-  function copy(text) {
-    navigator.clipboard?.writeText(text);
-  }
-
+  // ---------------- UI ----------------
   return (
     <div className="app">
       <div className="left">
@@ -289,6 +344,7 @@ export default function App() {
         <h2>Chess</h2>
         <div className="status">{status}</div>
 
+        {/* Render mode controls */}
         <div className="controls" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           <select value={mode} onChange={(e) => setMode(e.target.value)} aria-label="Render mode">
             <option value="2d">2D</option>
@@ -299,8 +355,43 @@ export default function App() {
           <button onClick={() => resetGame()}>Reset</button>
         </div>
 
-        {/* Multiplayer panel */}
+        {/* Single Player (AI) */}
         <details open>
+          <summary>Single Player (AI)</summary>
+          <div className="io-row">
+            <label>Enable</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => { setSpEnabled(true); setMpEnabled(false); }}>
+                Enabled
+              </button>
+              <button onClick={() => setSpEnabled(false)}>Disabled</button>
+            </div>
+          </div>
+
+          {spEnabled && (
+            <>
+              <div className="io-row">
+                <label>Your Color</label>
+                <select value={spMyColor} onChange={(e) => setSpMyColor(e.target.value)}>
+                  <option value="w">White</option>
+                  <option value="b">Black</option>
+                </select>
+              </div>
+
+              <div className="io-row">
+                <label>Difficulty</label>
+                <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
+            </>
+          )}
+        </details>
+
+        {/* Multiplayer (keep if you added WebRTC) */}
+        <details>
           <summary>Multiplayer (WebRTC)</summary>
           {!mpEnabled ? (
             <>
@@ -323,7 +414,7 @@ export default function App() {
             <>
               <div style={{ marginBottom: 8 }}>
                 Connected to <code>{roomCode}</code> · Peers: {peerCount} · You are{" "}
-                <b>{isHost ? "Host (White)" : myColor === "b" ? "Black" : "…assigning"}</b>
+                <b>{isHost ? "Host (White)" : myP2PColor === "b" ? "Black" : "…"}</b>
               </div>
               <div className="io-row">
                 <button onClick={() => p2pRef.current?.sendCtrl({ type: "undo" })}>Ask Undo</button>
@@ -334,6 +425,7 @@ export default function App() {
           )}
         </details>
 
+        {/* FEN / PGN */}
         <div className="io">
           <div className="io-row">
             <label>FEN</label>
@@ -355,7 +447,7 @@ export default function App() {
             <li>Promotion offers a simple picker (Q/R/B/N).</li>
             <li>Use Flip to view from Black’s side.</li>
             <li>Use the dropdown to switch between 2D and 3D.</li>
-            <li>Multiplayer: share a room code; host is White.</li>
+            <li>Single Player: pick your color & difficulty; the AI moves automatically.</li>
           </ul>
         </details>
       </div>

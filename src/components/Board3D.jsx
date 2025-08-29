@@ -1,5 +1,5 @@
 // src/components/Board3D.jsx
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Chess } from "chess.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -12,32 +12,28 @@ const SHOW_AXES = false;   // shows XYZ axes at origin
 const SHOW_BBOX = false;   // outlines mesh bounding boxes
 const LOG_PIECES = false;  // logs placement positions
 
-// Files order helper (a..h)
 const FILES = "abcdefgh";
 
-// Map a chess square (e.g., "e4") to world coordinates on an 8x8 board
-// Board spans x,z ∈ [-3.5, +3.5] with y=0 at tile tops.
 function squareToWorld(sq, orientation) {
-  const file = FILES.indexOf(sq[0]);          // 0..7
-  const rankIdx = parseInt(sq[1], 10) - 1;    // 0..7
+  const file = FILES.indexOf(sq[0]);       // 0..7
+  const rankIdx = parseInt(sq[1], 10) - 1; // 0..7
   const x = file - 3.5;
   const z = (orientation === "white" ? 7 - rankIdx : rankIdx) - 3.5;
-  return new THREE.Vector3(x, 0.1, z);        // y slightly above tile
+  return new THREE.Vector3(x, 0.1, z);     // sit slightly above tile
 }
 
 // Center, scale, and sit the model on y=0
 function normalizeModel(root, { targetHeight = 1.1 } = {}) {
-  // Compute original bounds
   const box = new THREE.Box3().setFromObject(root);
   const size = new THREE.Vector3();
   const center = new THREE.Vector3();
   box.getSize(size);
   box.getCenter(center);
 
-  // If your GLBs are Z-up (lying on their backs), uncomment:
+  // If your GLBs are Z-up (lying on their backs), try uncommenting:
   // root.rotation.x = -Math.PI / 2;
 
-  // Recentre to origin
+  // Recenter to origin
   root.position.sub(center);
 
   // Uniform scale to target height
@@ -49,10 +45,10 @@ function normalizeModel(root, { targetHeight = 1.1 } = {}) {
   const box2 = new THREE.Box3().setFromObject(root);
   root.position.y -= box2.min.y;
 
-  // Materials (ensure visible with basic lights)
+  // Ensure visible materials + shadows
   root.traverse((o) => {
     if (o.isMesh) {
-      // If the GLB already has nice materials, you can remove this override.
+      // If the GLB already has good materials, you can remove this override.
       o.material = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.1,
@@ -89,11 +85,12 @@ export default function Board3D({
 
   // Tiles and pieces
   const tilesRef = useRef({});           // square -> tile mesh
-  const piecesGroupRef = useRef(null);   // group that contains all piece instances
+  const piecesGroupRef = useRef(null);   // group for all piece instances
 
   // Loading + cache
   const loaderRef = useRef(new GLTFLoader());
   const cacheRef = useRef({});           // { k: normalizedScene, q: ..., ... }
+  const [modelsReady, setModelsReady] = useState(0); // bump as models load
 
   // Raycasting
   const raycaster = useRef(new THREE.Raycaster()).current;
@@ -106,10 +103,11 @@ export default function Board3D({
     // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    // keep a square canvas; height will follow width
     const size = Math.min(wrap.clientWidth, wrap.clientHeight || wrap.clientWidth);
     renderer.setSize(size, size);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // compatibility for older three versions:
+    // renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.shadowMap.enabled = true;
     wrap.appendChild(renderer.domElement);
     rendererRef.current = renderer;
@@ -121,7 +119,7 @@ export default function Board3D({
 
     // Camera
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-    camera.position.set(10, 12, 10);  // good default; adjusted by orientation effect
+    camera.position.set(10, 12, 10);
     cameraRef.current = camera;
 
     // Controls
@@ -144,7 +142,6 @@ export default function Board3D({
     dir.shadow.mapSize.set(2048, 2048);
     scene.add(dir);
 
-    // Optional debug axes
     if (SHOW_AXES) scene.add(new THREE.AxesHelper(3));
 
     // Ground (nice contact shadows outside the board)
@@ -157,11 +154,10 @@ export default function Board3D({
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // Board tiles (8x8), store squares in tilesRef
+    // Board tiles (8x8)
     const tiles = {};
     const board = new THREE.Group();
-    const squareSize = 1;
-    const tileGeo = new THREE.BoxGeometry(squareSize, 0.1, squareSize);
+    const tileGeo = new THREE.BoxGeometry(1, 0.1, 1);
 
     for (let r = 1; r <= 8; r++) {
       for (let f = 0; f < 8; f++) {
@@ -171,10 +167,8 @@ export default function Board3D({
           tileGeo,
           new THREE.MeshPhongMaterial({ color: isDark ? 0xb58863 : 0xf0d9b5 })
         );
-        // position is independent of orientation
         tile.position.set(f - 3.5, 0, r - 3.5);
         tile.receiveShadow = true;
-        // Store canonical file/rank indices; convert to algebraic on click using current orientation
         tile.userData = { fileIdx: f, rankIdx: r - 1 };
         board.add(tile);
         tiles[sq] = tile;
@@ -183,12 +177,12 @@ export default function Board3D({
     scene.add(board);
     tilesRef.current = tiles;
 
-    // Group for pieces (added once)
+    // Pieces group
     const piecesGroup = new THREE.Group();
     scene.add(piecesGroup);
     piecesGroupRef.current = piecesGroup;
 
-    // Resize handling to keep square canvas
+    // Resize (keep square)
     const onResize = () => {
       const s = Math.min(wrap.clientWidth, wrap.clientHeight || wrap.clientWidth);
       renderer.setSize(s, s, false);
@@ -197,7 +191,7 @@ export default function Board3D({
     };
     window.addEventListener("resize", onResize);
 
-    // Click picking: map pointer to ray, intersect tiles, derive algebraic square by orientation
+    // Click picking: intersect tiles, map to algebraic based on orientation
     const handlePointer = (e) => {
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -236,48 +230,49 @@ export default function Board3D({
     };
   }, [onSquareClick]);
 
-  // ---------------------- Camera orientation ----------------------
+  // Camera orientation
   useEffect(() => {
     const camera = cameraRef.current;
     const controls = controlsRef.current;
     if (!camera || !controls) return;
 
-    if (orientation === "white") {
-      camera.position.set(10, 12, 10);
-    } else {
-      camera.position.set(-10, 12, -10);
-    }
+    if (orientation === "white") camera.position.set(10, 12, 10);
+    else camera.position.set(-10, 12, -10);
+
     controls.target.set(0, 0, 0);
     controls.update();
   }, [orientation]);
 
-  // ---------------------- Load & cache GLBs (once per piece type) ----------------------
+  // Load & cache GLBs
   useEffect(() => {
     let cancelled = false;
 
-    const loadAll = async () => {
+    (async () => {
       const entries = Object.entries(pieceModels);
       for (const [key, url] of entries) {
+        if (cancelled) return;
         if (cacheRef.current[key]) continue;
+
         try {
           const gltf = await loaderRef.current.loadAsync(url);
           const root = gltf.scene || gltf.scenes?.[0];
           if (!root) continue;
-          // ✨ normalize once into cache
+
           cacheRef.current[key] = normalizeModel(root, { targetHeight: 1.1 });
+
+          // bump to re-run placement once this model is ready
+          setModelsReady((v) => v + 1);
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error("Failed to load GLB:", key, url, err);
         }
-        if (cancelled) return;
       }
-    };
+    })();
 
-    loadAll();
     return () => { cancelled = true; };
   }, []);
 
-  // ---------------------- Build pieces whenever FEN or orientation changes ----------------------
+  // Build pieces whenever FEN/orientation/modelsReady changes
   useEffect(() => {
     const piecesGroup = piecesGroupRef.current;
     if (!piecesGroup) return;
@@ -296,7 +291,7 @@ export default function Board3D({
       if (!piece) return;
 
       const base = cacheRef.current[piece.type];
-      if (!base) return; // not loaded yet; will appear on next effect once loaded
+      if (!base) return; // not loaded yet; will appear once modelsReady increments again
 
       // Clone normalized model
       const instance = cloneSkeleton(base);
@@ -319,14 +314,13 @@ export default function Board3D({
       }
     });
 
-    // Optionally report count:
     if (LOG_PIECES) {
       // eslint-disable-next-line no-console
-      console.log("pieces count:", piecesGroup.children.length);
+      console.log("pieces count:", piecesGroup.children.length, "modelsReady:", modelsReady);
     }
-  }, [fen, orientation]);
+  }, [fen, orientation, modelsReady]);
 
-  // ---------------------- Highlight tiles (selected, targets, last move) ----------------------
+  // Highlight tiles (selected, targets, last move)
   useEffect(() => {
     const tiles = tilesRef.current;
     if (!tiles) return;
@@ -363,7 +357,6 @@ export default function Board3D({
       className="board3d"
       ref={wrapRef}
       aria-label="3D Chess Board"
-      // ensure the container has width/height via CSS; if not, fallback here:
       style={{ width: "calc(var(--square, 68px) * 8)", height: "calc(var(--square, 68px) * 8)" }}
     />
   );

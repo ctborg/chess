@@ -1,0 +1,73 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+* { box-sizing: border-box; }
+
+:root {
+  // still exposing CSS custom properties for runtime tweaks if desired
+  --square: #{$square};
+}
+
+body {
+  margin: 0;
+  font-family: $font-ui;
+  background: $bg;
+  color: $text;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: auto 320px;
+  gap: 24px;
+  padding: 24px;
+  align-items: start;
+}
+
+.left { position: relative; }
+
+.right {
+  max-width: 320px;
+
+  h2 { margin: 0 0 8px; }
+  .status { margin-bottom: 12px; font-weight: 600; }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+
+    button { @include button-reset; }
+  }
+
+  .io {
+    .io-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-bottom: 12px;
+
+      label {
+        display: block;
+        font-size: 12px;
+        color: $muted;
+        margin-bottom: 6px;
+        grid-column: 1 / -1;
+      }
+
+      textarea {
+        width: 100%;
+        font-family: $font-mono;
+        resize: vertical;
+        padding: 8px;
+        border-radius: 6px;
+        border: 1px solid #ddd;
+      }
+
+      button { @include button-reset; }
+    }
+  }
+
+  details {
+    summary { cursor: pointer; }
+  }
+}

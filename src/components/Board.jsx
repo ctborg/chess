@@ -53,7 +53,7 @@ export default function Board({
                 {piece ? (
                   <span className={`piece ${piece.color}${piece.type}`}>
                     <img 
-			src=${pieces2d[piece.color][piece.type]}
+			src={pieces2d[piece.color][piece.type]}
                         alt={`piece ${piece.color}${piece.type}`}
 			className="piece" />
                   </span>

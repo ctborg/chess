@@ -1,4 +1,5 @@
 import { Chess } from "chess.js";
+import piece2d from "../assets/pieces/2d";
 
 const UNICODE = {
   w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
@@ -51,7 +52,10 @@ export default function Board({
               >
                 {piece ? (
                   <span className={`piece ${piece.color}${piece.type}`}>
-                    {UNICODE[piece.color][piece.type]}
+                    <img 
+			src="{pieces2d[piece.color][piece.type]}"
+                        alt={`piece ${piece.color}${piece.type}`}
+			className="piece" />
                   </span>
                 ) : isTarget ? <span className="dot" /> : null}
               </div>

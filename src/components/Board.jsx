@@ -1,5 +1,5 @@
 import { Chess } from "chess.js";
-import piece2d from "../assets/pieces/2d";
+import pieces2d from "../assets/pieces/2d";
 
 const UNICODE = {
   w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },

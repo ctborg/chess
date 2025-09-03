@@ -28,7 +28,7 @@ export default function Board({
             const square = `${file}${rank}`;
             const piece = chess.get(square);
             const isDark =
-              (FILES.indexOf(file) + rank) % 2 === 0;
+              (FILES.indexOf(file) + rank) % 2 === 1;
             const isSelected = selected === square;
             const isTarget = legalTargets.has(square);
             const wasLastMove =

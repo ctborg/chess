@@ -5,7 +5,7 @@ import { Chess } from "chess.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
-import pieceModels from "../assets/pieces";
+import pieceModels from "../assets/pieces/3d";
 
 // ---------------------- Debug toggles (flip to true temporarily) ----------------------
 const SHOW_AXES = true;   // shows XYZ axes at origin

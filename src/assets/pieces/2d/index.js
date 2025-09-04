@@ -8,7 +8,7 @@ import bpawn from "./bP.svg";
 import wking from "./wK.svg";
 import wqueen from "./wQ.svg";
 import wrook from "./wR.svg";
-import wwishop from "./wB.svg";
+import wbishop from "./wB.svg";
 import wknight from "./wKn.svg";
 import wpawn from "./wP.svg";
 
@@ -24,7 +24,7 @@ export default {
   wk: wking,
   wq: wqueen,
   wr: wrook,
-  ww: wwishop,
+  wb: wbishop,
   wn: wknight,
   wp: wpawn
 };

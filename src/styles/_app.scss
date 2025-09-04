@@ -15,12 +15,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 variables.$gap;
+  padding: 0 $gap;
   border-bottom: 1px solid rgba(0,0,0,0.08);
   background: #fff;
 
   .brand {
-    font-weight: variables.$panel-heading-weight;
+    font-weight: $panel-heading-weight;
   }
 
   .hamburger {
@@ -50,7 +50,7 @@
 /* --- Main grid: board + sidebar --- */
 .app {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) variables.$sidebar-width;
+  grid-template-columns: minmax(0, 1fr) $sidebar-width;
   height: 100%;
   overflow: hidden;
 
@@ -69,7 +69,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: variables.$gap;
+  padding: $gap;
 }
 
 .right {
@@ -80,14 +80,14 @@
     position: absolute;
     inset: 0;
     overflow-y: auto;
-    padding: variables.$gap;
+    padding: $gap;
     display: grid;
     align-content: start;
     gap: 12px;
     transition: opacity 160ms ease, transform 160ms ease;
   }
 
-  .status { font-weight: variables.$panel-heading-weight; }
+  .status { font-weight: $panel-heading-weight; }
 
   .controls {
     display: grid;
@@ -114,7 +114,7 @@
 
     &.sidebar-open {
       /* slide sidebar over the board as a drawer */
-      grid-template-columns: 1fr min(92vw, variables.$sidebar-width);
+      grid-template-columns: 1fr min(92vw, $sidebar-width);
       .right .sidebar-inner {
         background: #fff;
         box-shadow: -8px 0 24px rgba(0,0,0,0.1);

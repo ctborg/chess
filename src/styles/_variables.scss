@@ -18,3 +18,22 @@ $frame: #333;
 $font-ui: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
   Arial, "Apple Color Emoji", "Segoe UI Emoji";
 $font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+// sizing
+$sidebar-width: 320px;
+$gap: 16px;
+$border-radius: 8px;
+
+// colors
+$tile-light: #f0d9b5;
+$tile-dark: #b58863;
+$board-border: #333;
+$overlay-bg: rgba(0, 0, 0, 0.35);
+
+// highlight colors
+$hl-last-move: #9ccc65;
+$hl-selected: #ffeb3b;
+$hl-target: #81c784;
+
+// typography-ish
+$panel-heading-weight: 600;

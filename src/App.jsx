@@ -9,6 +9,7 @@ export default function App() {
   const chessRef = useRef(new Chess());
   const game = chessRef.current;
 
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   // Core UI / chess state
   const [fen, setFen] = useState(game.fen());
   const [selected, setSelected] = useState(null);
@@ -297,33 +298,49 @@ export default function App() {
 
   // ---------------- UI ----------------
   return (
-    <div className="app">
-      <div className="left">
-        {mode === "2d" ? (
-          <Board
-            fen={fen}
-            orientation={orientation}
-            selected={selected}
-            legalTargets={legalTargets}
-            lastMove={lastMove}
-            onSquareClick={handleSquareClick}
-          />
-        ) : (
-          <Board3D
-            fen={fen}
-            orientation={orientation}
-            selected={selected}
-            legalTargets={legalTargets}
-            lastMove={lastMove}
-            onSquareClick={handleSquareClick}
-          />
-        )}
-
-        {pendingPromotion && (
+    <div className="shell">
+      {/* TOP BAR */}
+      <header className="topbar">
+        <div className="brand">Chess</div>
+        <button
+          className={`hamburger ${sidebarOpen ? 'is-open' : ''}`}
+          aria-label="Toggle sidebar"
+          aria-pressed={sidebarOpen}
+          onClick={() => setSidebarOpen((v) => !v)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+      </header>
+  
+      <div className={`app ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+        <div className="left">
+          {mode === '2d' ? (
+            <Board
+              fen={fen}
+              orientation={orientation}
+              selected={selected}
+              legalTargets={legalTargets}
+              lastMove={lastMove}
+              onSquareClick={handleSquareClick}
+            />
+          ) : (
+            <Board3D
+              fen={fen}
+              orientation={orientation}
+              selected={selected}
+              legalTargets={legalTargets}
+              lastMove={lastMove}
+              onSquareClick={handleSquareClick}
+            />
+          )}
+  
+          {pendingPromotion && (
           <div className="promo-overlay">
             <div className="promo-modal">
               <div className="promo-title">Choose promotion</div>
-              {["q", "r", "b", "n"].map((p) => (
+              {['q', 'r', 'b', 'n'].map((p) => (
                 <button key={p} className="promo-btn" onClick={() => choosePromotion(p)}>
                   {p.toUpperCase()}
                 </button>
@@ -337,119 +354,133 @@ export default function App() {
               </button>
             </div>
           </div>
-        )}
-      </div>
-
-      <div className="right">
-        <h2>Chess</h2>
-        <div className="status">{status}</div>
-
-        {/* Render mode controls */}
-        <div className="controls" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <select value={mode} onChange={(e) => setMode(e.target.value)} aria-label="Render mode">
-            <option value="2d">2D</option>
-            <option value="3d">3D (WebGL)</option>
-          </select>
-          <button onClick={flip}>Flip Board</button>
-          <button onClick={() => undo()}>Undo</button>
-          <button onClick={() => resetGame()}>Reset</button>
+          )}
         </div>
-
-        {/* Single Player (AI) */}
-        <details open>
-          <summary>Single Player (AI)</summary>
-          <div className="io-row">
-            <label>Enable</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => { setSpEnabled(true); setMpEnabled(false); }}>
-                Enabled
-              </button>
-              <button onClick={() => setSpEnabled(false)}>Disabled</button>
+        <aside className="right">
+          <div className="sidebar-inner">
+            <div className="status">{status}</div>
+  
+            {/* Render mode controls */}
+            <div className="controls">
+              <select value={mode} onChange={(e) => setMode(e.target.value)} aria-label="Render mode">
+                <option value="2d">2D</option>
+                <option value="3d">3D (WebGL)</option>
+              </select>
+              <button onClick={flip}>Flip Board</button>
+              <button onClick={() => undo()}>Undo</button>
+              <button onClick={() => resetGame()}>Reset</button>
             </div>
+  
+            {/* Single Player (AI) */}
+            <details open>
+              <summary>Single Player (AI)</summary>
+              <div className="io-row">
+                <label>Enable</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => { setSpEnabled(true); setMpEnabled(false); }}>
+                    Enabled
+                    </button>
+                  <button onClick={() => setSpEnabled(false)}>Disabled</button>
+                </div>
+              </div>
+  
+              {spEnabled && (
+              <>
+                <div className="io-row">
+                  <label>Your Color</label>
+                  <select value={spMyColor} onChange={(e) => setSpMyColor(e.target.value)}>
+                     <option value="w">White</option>
+                     <option value="b">Black</option>
+                   </select>
+                </div>
+  
+                <div className="io-row">
+                  <label>Difficulty</label>
+                  <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
+                     <option value="easy">Easy</option>
+                     <option value="medium">Medium</option>
+                     <option value="hard">Hard</option>
+                   </select>
+                </div>
+              </>
+              )}
+            </details>
+  
+            {/* Multiplayer (keep if you added WebRTC) */}
+            <details>
+              <summary>Multiplayer (WebRTC)</summary>
+              {!mpEnabled ? (
+                <>
+                  <div className="io-row">
+                    <label>Room Code</label>
+                    <input
+                       placeholder="e.g. my-chess-room"
+                       value={roomCode}
+                       onChange={(e) => setRoomCode(e.target.value)}
+                     />
+                    <button onClick={connectRoom} disabled={!roomCode.trim()}>
+                       Create / Join
+                      </button>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#555' }}>
+                    First person in becomes
+                      {' '}
+                    <b>host</b>
+                    {' '}
+                    (white). Second joins as black.
+                    </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ marginBottom: 8 }}>
+                     Connected to
+                      {' '}
+                     <code>{roomCode}</code>
+                     {' '}
+                     · Peers:
+                      {' '}
+                     {peerCount}
+                     {' '}
+                     · You are
+                      {' '}
+                     <b>{isHost ? 'Host (White)' : myP2PColor === 'b' ? 'Black' : '…'}</b>
+                   </div>
+                  <div className="io-row">
+                     <button onClick={() => p2pRef.current?.sendCtrl({ type: 'undo' })}>Ask Undo</button>
+                     <button onClick={() => p2pRef.current?.sendCtrl({ type: 'reset' })}>Ask Reset</button>
+                     <button onClick={disconnectRoom}>Leave</button>
+                   </div>
+                </>
+              )}
+            </details>
+  
+            {/* FEN / PGN */}
+            <div className="io">
+              <div className="io-row">
+                <label>FEN</label>
+                <textarea readOnly value={fen} rows={3} />
+                <button onClick={() => copy(fen)}>Copy</button>
+              </div>
+  
+              <div className="io-row">
+                <label>PGN</label>
+                <textarea readOnly value={game.pgn()} rows={8} />
+                <button onClick={() => copy(game.pgn())}>Copy</button>
+              </div>
+            </div>
+  
+            <details>
+              <summary>How to play</summary>
+              <ul>
+                <li>Click a piece, then click a highlighted target square.</li>
+                <li>Promotion offers a simple picker (Q/R/B/N).</li>
+                <li>Use Flip to view from Black’s side.</li>
+                <li>Use the dropdown to switch between 2D and 3D.</li>
+                <li>Single Player: pick your color & difficulty; the AI moves automatically.</li>
+              </ul>
+            </details>
           </div>
-
-          {spEnabled && (
-            <>
-              <div className="io-row">
-                <label>Your Color</label>
-                <select value={spMyColor} onChange={(e) => setSpMyColor(e.target.value)}>
-                  <option value="w">White</option>
-                  <option value="b">Black</option>
-                </select>
-              </div>
-
-              <div className="io-row">
-                <label>Difficulty</label>
-                <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
-                  <option value="easy">Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
-                </select>
-              </div>
-            </>
-          )}
-        </details>
-
-        {/* Multiplayer (keep if you added WebRTC) */}
-        <details>
-          <summary>Multiplayer (WebRTC)</summary>
-          {!mpEnabled ? (
-            <>
-              <div className="io-row">
-                <label>Room Code</label>
-                <input
-                  placeholder="e.g. my-chess-room"
-                  value={roomCode}
-                  onChange={(e) => setRoomCode(e.target.value)}
-                />
-                <button onClick={connectRoom} disabled={!roomCode.trim()}>
-                  Create / Join
-                </button>
-              </div>
-              <div style={{ fontSize: 12, color: "#555" }}>
-                First person in becomes <b>host</b> (white). Second joins as black.
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ marginBottom: 8 }}>
-                Connected to <code>{roomCode}</code> · Peers: {peerCount} · You are{" "}
-                <b>{isHost ? "Host (White)" : myP2PColor === "b" ? "Black" : "…"}</b>
-              </div>
-              <div className="io-row">
-                <button onClick={() => p2pRef.current?.sendCtrl({ type: "undo" })}>Ask Undo</button>
-                <button onClick={() => p2pRef.current?.sendCtrl({ type: "reset" })}>Ask Reset</button>
-                <button onClick={disconnectRoom}>Leave</button>
-              </div>
-            </>
-          )}
-        </details>
-
-        {/* FEN / PGN */}
-        <div className="io">
-          <div className="io-row">
-            <label>FEN</label>
-            <textarea readOnly value={fen} rows={3} />
-            <button onClick={() => copy(fen)}>Copy</button>
-          </div>
-
-          <div className="io-row">
-            <label>PGN</label>
-            <textarea readOnly value={game.pgn()} rows={8} />
-            <button onClick={() => copy(game.pgn())}>Copy</button>
-          </div>
-        </div>
-
-        <details>
-          <summary>How to play</summary>
-          <ul>
-            <li>Click a piece, then click a highlighted target square.</li>
-            <li>Promotion offers a simple picker (Q/R/B/N).</li>
-            <li>Use Flip to view from Black’s side.</li>
-            <li>Use the dropdown to switch between 2D and 3D.</li>
-            <li>Single Player: pick your color & difficulty; the AI moves automatically.</li>
-          </ul>
-        </details>
+        </aside>
       </div>
     </div>
   );

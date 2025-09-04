@@ -22,7 +22,7 @@ export default function Board({
   const files = orientation === "white" ? FILES : [...FILES].reverse();
 
   return (
-    <div className={`board ${orientation}`}>
+    <div className={`board2d ${orientation}`}>
       {ranks.map((rank) => (
         <div key={rank} className="rank-row">
           {files.map((file) => {

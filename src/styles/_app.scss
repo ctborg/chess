@@ -1,0 +1,77 @@
+.app {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) $sidebar-width;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $gap;
+}
+
+.right {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: $gap;
+  overflow-y: auto;
+
+  h2 {
+    margin: 0;
+  }
+
+  .status {
+    font-weight: $panel-heading-weight;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .io,
+  .io-row {
+    display: grid;
+    gap: 6px;
+  }
+
+  textarea {
+    width: 100%;
+    resize: vertical;
+  }
+}
+
+/* Promotion modal / overlay */
+.promo-overlay {
+  position: fixed;
+  inset: 0;
+  background: $overlay-bg;
+  display: grid;
+  place-items: center;
+}
+
+.promo-modal {
+  background: #fff;
+  padding: $gap;
+  border-radius: $border-radius;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  display: grid;
+  gap: 8px;
+  min-width: 240px;
+
+  .promo-title {
+    font-weight: $panel-heading-weight;
+  }
+
+  .promo-btn {
+    padding: 6px 8px;
+  }
+
+  .promo-cancel {
+    margin-top: 6px;
+  }
+}

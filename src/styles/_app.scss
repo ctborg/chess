@@ -1,3 +1,6 @@
+@use "variables" as *;
+
+
 .app {
   display: grid;
   grid-template-columns: minmax(0, 1fr) $sidebar-width;
